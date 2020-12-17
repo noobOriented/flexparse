@@ -1,0 +1,17 @@
+[[source]]
+verify_ssl = true
+name = "pypi"
+url = "https://pypi.python.org/simple"
+
+[packages]
+termcolor = "*"
+more-itertools = "*"
+
+[dev-packages]
+flake8 = "*"
+ipdb = "*"
+pytest = "*"
+pytest-cov = "*"
+
+[requires]
+python_version = "3.6"
