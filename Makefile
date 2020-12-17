@@ -6,7 +6,7 @@ lint:
 
 .PHONY: test
 test:
-	pytest flexparse/ --cov=flexparse/ --cov-fail-under=80
+	pytest flexparse/ --cov=flexparse/ --cov-fail-under=80 --cov-report term-missing
 
 .PHONY: clean
 clean:

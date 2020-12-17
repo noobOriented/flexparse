@@ -8,6 +8,7 @@ from ..types import (
     path,
     filepath,
     dirpath,
+    LookUp,
     FactoryMethod,
 )
 
@@ -74,6 +75,13 @@ def test_dirpath(tmpdir):
 ])
 def test_name(func, expected_name):
     assert func.__name__ == expected_name
+
+
+def test_lookup():
+    type_ = LookUp({'a': 1, 'b': 2, 'c': 3})
+    assert type_('a') == 1
+    assert type_('b') == 2
+    assert type_('c') == 3
 
 
 def foo(*args, **kwargs):
