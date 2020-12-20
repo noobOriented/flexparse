@@ -1,6 +1,5 @@
 import ast
 import math
-import os
 import re
 import termcolor
 from argparse import ArgumentTypeError
@@ -86,28 +85,6 @@ def _repr_inteval(minval, maxval, inclusive):
     left_bracket = '[' if (inclusive and not math.isinf(minval)) else '('
     right_bracket = ']' if (inclusive and not math.isinf(maxval)) else ')'
     return f"{left_bracket}{_math_repr(minval)}, {_math_repr(maxval)}{right_bracket}"
-
-
-def path(x):
-    return os.path.normpath(x)
-
-
-def filepath(x):
-    """Check if file exists.
-    """
-    x = path(x)
-    if not os.path.isfile(x):
-        raise ValueError
-    return x
-
-
-def dirpath(x):
-    """Check if directory exists.
-    """
-    x = path(x)
-    if not os.path.isdir(x):
-        raise ValueError
-    return x
 
 
 class LookUp:

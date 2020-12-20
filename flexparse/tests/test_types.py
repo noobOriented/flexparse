@@ -1,14 +1,9 @@
-import os
-
 import pytest
 
 from ..types import (
     ArgumentTypeError,
     IntRange,
     FloatRange,
-    path,
-    filepath,
-    dirpath,
     LookUp,
     FactoryMethod,
 )
@@ -68,26 +63,6 @@ class TestFloatRange:
     ])
     def test_repr(self, func, expected_repr):
         assert repr(func) == expected_repr
-
-
-def test_path():
-    assert path("A//B") == path("A/B/") == path("A/./B") == path("A/foo/../B") == "A/B"
-
-
-def test_filepath(tmpdir):
-    filename = os.path.join(tmpdir, 'new_file')
-    with pytest.raises(ValueError):
-        filepath(filename)
-
-    with open(filename, 'w'):
-        pass
-    assert filepath(filename) == filename
-
-
-def test_dirpath(tmpdir):
-    assert dirpath(tmpdir) == tmpdir
-    with pytest.raises(ValueError):
-        dirpath(os.path.join(tmpdir, 'dir_not_existed'))
 
 
 def test_lookup():
