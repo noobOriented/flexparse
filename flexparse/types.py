@@ -14,7 +14,7 @@ from .utils import (
 
 class IntRange:
 
-    def __init__(self, minval=float('-inf'), maxval=float('inf')):
+    def __init__(self, minval=float('-inf'), maxval=float('inf')):  # noqa
         self.minval = minval
         self.maxval = maxval
 
@@ -43,7 +43,7 @@ class IntRange:
 
 class FloatRange:
 
-    def __init__(self, minval=float('-inf'), maxval=float('inf'), inclusive=True):
+    def __init__(self, minval=float('-inf'), maxval=float('inf'), inclusive=True):  # noqa
         self.minval = float(minval)
         self.maxval = float(maxval)
         self.inclusive = inclusive
