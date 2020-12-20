@@ -118,22 +118,22 @@ class TestFactoryMethod:
             id='empty',
         ),
         pytest.param(
-            'foo(1,F1=1.,F2=1e-4,F3=-1e-4)',
+            'foo(1, F1=1.,  F2=1e-4, F3=-1e-4)',
             foo(1, F1=1., F2=1e-4, F3=-1e-4),
             id='int float',
         ),
         pytest.param(
-            'foo(False,B2=True,N=None)',
+            'foo(False,   B2=True, N=None)',
             foo(False, B2=True, N=None),
             id='bool None',
         ),
         pytest.param(
-            'goo(s,S2="s",S3=\'s\')',
+            'goo(s, S2="s", S3=\'s\')',
             goo('s', S2='s', S3='s'),
             id='string quotation',
         ),
         pytest.param(
-            'goo(S1=open,S2=exit,S3=exec,S4=import,S5=OSError)',
+            'goo(S1=open, S2=exit,  S3=exec, S4=import, S5=OSError)',
             goo(S1='open', S2='exit', S3='exec', S4='import', S5='OSError'),
             id='no builtins',
         ),

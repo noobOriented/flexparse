@@ -6,7 +6,6 @@ from typing import List
 
 
 def match_abbrev(func):
-
     func_args = get_args(func)
     bypass = inspect.getfullargspec(func).varkw is not None
 
@@ -14,7 +13,7 @@ def match_abbrev(func):
         matches = [kw for kw in func_args if kw.startswith(abbrev)]
         if len(matches) > 1:
             raise TypeError(
-                f"ambiguous: {abbrev} match multiple results: {format_list(matches)}",
+                f"{abbrev!r} matches multiple keywords: {format_list(matches)}",
             )
         if len(matches) == 1:
             return matches[0]
@@ -22,8 +21,8 @@ def match_abbrev(func):
             return abbrev
 
         raise TypeError(
-            f"{func.__qualname__} got an unexpected keyword argument {abbrev:r}, "
-            f"allowed arguments of {func.__qualname__}: {format_list(func_args)}",
+            f"{func.__qualname__}() got an unexpected keyword argument {abbrev!r}, "
+            f"allowed arguments: {format_list(func_args)}",
         )
 
     @functools.wraps(func)
@@ -72,6 +71,6 @@ def dict_of_unique(items):
     output = {}
     for key, val in items:
         if key in output:
-            raise ValueError(f"{key} conflict!")
+            raise ValueError(repr(key))
         output[key] = val
     return output

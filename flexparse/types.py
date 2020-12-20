@@ -131,12 +131,15 @@ class FactoryMethod:
 
     COMMA = ','  # TODO configurable color?
 
+    class InvalidLiteralError(Exception):
+        pass
+
     def __init__(
             self,
             registry: Dict[str, callable],
             return_info: bool = False,
             default_as_string: bool = True,
-            use_match_abbrev: bool = True,
+            match_abbrev: bool = True,
         ):
         if all(map(callable, registry.values())):
             self.registry = registry
@@ -145,7 +148,7 @@ class FactoryMethod:
 
         self.return_info = return_info
         self.default_as_string = default_as_string
-        self.use_match_abbrev = use_match_abbrev
+        self.match_abbrev = match_abbrev
 
     def __call__(self, arg_string):
         # clean color
@@ -156,7 +159,7 @@ class FactoryMethod:
                 m = re.match(r'(.*)\((.*)\)', arg_string)
                 func_name, arg_string = m.group(1), m.group(2)
             except (AttributeError, IndexError):
-                raise ArgumentTypeError(f"invalid arguments: {arg_string!r}")
+                raise ArgumentTypeError(f"{arg_string!r} can't be parsed as a call")
         else:
             func_name, arg_string = arg_string, ''
 
@@ -164,19 +167,23 @@ class FactoryMethod:
             func = self.registry[func_name]
         except KeyError:
             raise ArgumentTypeError(
-                f"invalid choice: '{func_name}' (choose from {format_list(self.registry.keys())})",
+                f"invalid function name: '{func_name}' "
+                f"(choose from {format_list(self.registry.keys())})",
             )
         try:
             pos_args, kwargs = self._parse_arg_string(arg_string)
-        except ValueError:
-            raise ArgumentTypeError(f"invalid kwargs: {arg_string!r}")
-        except NameError:
-            raise ArgumentTypeError("value should be built-in types.")
+        except self.InvalidLiteralError as e:
+            raise ArgumentTypeError(str(e))
+        except Exception:
+            raise ArgumentTypeError(f"invalid syntax: {arg_string!r}")
 
-        if self.use_match_abbrev:
-            result = match_abbrev(func)(*pos_args, **kwargs)
-        else:
-            result = func(*pos_args, **kwargs)
+        try:
+            if self.match_abbrev:
+                result = match_abbrev(func)(*pos_args, **kwargs)
+            else:
+                result = func(*pos_args, **kwargs)
+        except TypeError as e:
+            raise ArgumentTypeError(str(e))
 
         if self.return_info:
             return result, CallInfo(func, func_name, *pos_args, **kwargs)
@@ -187,7 +194,7 @@ class FactoryMethod:
         if not arg_string:
             return (), {}
 
-        arg_list = arg_string.split(',')
+        arg_list = [arg.strip(' ') for arg in arg_string.split(',')]
         pos_args = tuple(
             self._literal_eval(s)
             for s in takewhile(lambda s: '=' not in s, arg_list)
@@ -199,18 +206,17 @@ class FactoryMethod:
         return pos_args, kwargs
 
     def _parse_kwarg(self, item_string):
-        try:
-            key, val = item_string.split('=')
-        except ValueError:
-            raise
+        key, val = item_string.split('=')
         return key, self._literal_eval(val)
 
     def _literal_eval(self, val):
         try:
             val = ast.literal_eval(val)
-        except (SyntaxError, ValueError):
+        except Exception:
             if not self.default_as_string:
-                raise ValueError
+                raise self.InvalidLiteralError(
+                    f"{val!r} can't be evaled to built-in types",
+                )
             # default as string if can't eval
         return val
 
