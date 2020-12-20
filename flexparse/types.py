@@ -1,7 +1,6 @@
 import ast
 import math
 import re
-import termcolor
 from argparse import ArgumentTypeError
 from itertools import takewhile, dropwhile, starmap
 from typing import Dict
@@ -15,7 +14,7 @@ from .utils import (
 
 class IntRange:
 
-    def __init__(self, minval=-math.inf, maxval=math.inf):
+    def __init__(self, minval=float('-inf'), maxval=float('inf')):
         self.minval = minval
         self.maxval = maxval
 
@@ -30,9 +29,9 @@ class IntRange:
             raise ArgumentTypeError(f"{int_x} not in {self._interval}")
 
     def __repr__(self):
-        if (self.minval, self.maxval) == (1, math.inf):
+        if (self.minval, self.maxval) == (1, float('inf')):
             return 'positive-int'
-        elif (self.minval, self.maxval) == (0, math.inf):
+        elif (self.minval, self.maxval) == (0, float('inf')):
             return 'non-negative-int'
         else:
             return f'int∈{self._interval}'
@@ -44,14 +43,14 @@ class IntRange:
 
 class FloatRange:
 
-    def __init__(self, minval=-math.inf, maxval=math.inf, inclusive=True):
+    def __init__(self, minval=float('-inf'), maxval=float('inf'), inclusive=True):
         self.minval = float(minval)
         self.maxval = float(maxval)
         self.inclusive = inclusive
 
     def __call__(self, x):
         try:
-            float_x = int(x)
+            float_x = float(x)
         except ValueError:
             raise ArgumentTypeError(f"invalid float value: {x!r}")
         if (
@@ -63,7 +62,7 @@ class FloatRange:
             raise ArgumentTypeError(f"{float_x} not in {self._interval}")
 
     def __repr__(self):
-        if (self.minval, self.maxval) == (0., math.inf):
+        if (self.minval, self.maxval) == (0., float('inf')):
             return 'non-negative-float' if self.inclusive else 'positive-float'
         else:
             return f'float∈{self._interval}'
@@ -76,9 +75,9 @@ class FloatRange:
 def _repr_inteval(minval, maxval, inclusive):
 
     def _math_repr(x):
-        if x == -math.inf:
+        if x == float('-inf'):
             return '-∞'
-        if x == math.inf:
+        if x == float('inf'):
             return '∞'
         return repr(x)
 
@@ -217,7 +216,7 @@ class FactoryMethod:
 
 class CallInfo:
 
-    COMMA = termcolor.colored(',', attrs=['dark'])
+    COMMA = ', '
 
     def __init__(self, func, func_name, *args, **kwargs):
         self.func = func

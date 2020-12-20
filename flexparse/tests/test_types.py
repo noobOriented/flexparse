@@ -22,6 +22,9 @@ class TestIntRange:
         (IntRange(2, 5), '6'),
         (IntRange(), 'a'),
         (IntRange(), '2.'),
+        (IntRange(), '1e-4'),
+        (IntRange(), '0b01'),
+        (IntRange(), '0xAA'),
     ])
     def test_raise(self, func, x):
         with pytest.raises(ArgumentTypeError):
@@ -42,14 +45,16 @@ class TestFloatRange:
     @pytest.mark.parametrize('func, x', [
         (FloatRange(0), '2'),
         (FloatRange(0), '0'),
+        (FloatRange(0), 'inf'),
+        (FloatRange(0), '1e-4'),
     ])
     def test_call(self, func, x):
         assert func(x) == float(x)
 
     @pytest.mark.parametrize('func, x', [
         (FloatRange(0, inclusive=False), '0'),
+        (FloatRange(inclusive=False), 'inf'),
         (FloatRange(), 'a'),
-        (FloatRange(), 'inf'),
     ])
     def test_raise(self, func, x):
         with pytest.raises(ArgumentTypeError):
@@ -65,11 +70,18 @@ class TestFloatRange:
         assert repr(func) == expected_repr
 
 
-def test_lookup():
-    type_ = LookUp({'a': 1, 'b': 2, 'c': 3})
-    assert type_('a') == 1
-    assert type_('b') == 2
-    assert type_('c') == 3
+class TestLookUp:
+
+    def test_call(self):
+        type_ = LookUp({'a': 1, 'b': 2, 'c': 3})
+        assert type_('a') == 1
+        assert type_('b') == 2
+        assert type_('c') == 3
+
+    def test_raise(self):
+        type_ = LookUp({'a': 1, 'b': 2, 'c': 3})
+        with pytest.raises(ArgumentTypeError):
+            type_('d')
 
 
 def foo(*args, **kwargs):
