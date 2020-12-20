@@ -50,7 +50,7 @@ def _validate_option_strings_prefix(options):
         # error on strings that don't start with an appropriate prefix
         if s[0] != PREFIX_CHAR:
             raise ValueError(
-                f"invalid option string {s:r}: must start with a character {PREFIX_CHAR:r}",
+                f"invalid option string {s!r}: must start with a character {PREFIX_CHAR!r}",
             )
 
 

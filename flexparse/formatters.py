@@ -3,8 +3,6 @@ import re
 import shutil
 import termcolor
 
-from .utils import format_list
-
 
 CHOICE_COLOR = 'cyan'
 
@@ -152,4 +150,4 @@ def format_choices(choices):
         termcolor.colored(str(choice), color=CHOICE_COLOR)
         for choice in choices
     ]
-    return f"{{{format_list(choice_strs)}}}"
+    return f"{{{', '.join(choice_strs)}}}"
