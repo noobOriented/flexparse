@@ -3,6 +3,7 @@ import math
 import os
 import re
 import termcolor
+from argparse import ArgumentTypeError
 from itertools import takewhile, dropwhile, starmap
 from typing import Dict
 
@@ -20,7 +21,14 @@ class IntRange:
         self.maxval = maxval
 
     def __call__(self, x):
-        return _validate_in_range(int(x), self.minval, self.maxval, inclusive=True)
+        try:
+            int_x = int(x)
+        except ValueError:
+            raise ArgumentTypeError(f"invalid int value: {x!r}")
+        if self.minval <= int_x <= self.maxval:
+            return int_x
+        else:
+            raise ArgumentTypeError(f"{int_x} not in {self._interval}")
 
     def __repr__(self):
         if (self.minval, self.maxval) == (1, math.inf):
@@ -28,35 +36,42 @@ class IntRange:
         elif (self.minval, self.maxval) == (0, math.inf):
             return 'non-negative-int'
         else:
-            return f'int∈{_repr_inteval(self.minval, self.maxval, inclusive=True)}'
+            return f'int∈{self._interval}'
+
+    @property
+    def _interval(self):
+        return _repr_inteval(self.minval, self.maxval, inclusive=True)
 
 
 class FloatRange:
 
     def __init__(self, minval=-math.inf, maxval=math.inf, inclusive=True):
-        self.minval = minval
-        self.maxval = maxval
+        self.minval = float(minval)
+        self.maxval = float(maxval)
         self.inclusive = inclusive
 
     def __call__(self, x):
-        return _validate_in_range(float(x), self.minval, self.maxval, inclusive=self.inclusive)
+        try:
+            float_x = int(x)
+        except ValueError:
+            raise ArgumentTypeError(f"invalid float value: {x!r}")
+        if (
+            self.minval <= float_x <= self.maxval
+            and (self.inclusive or float_x not in (self.minval, self.maxval))
+        ):
+            return float_x
+        else:
+            raise ArgumentTypeError(f"{float_x} not in {self._interval}")
 
     def __repr__(self):
         if (self.minval, self.maxval) == (0., math.inf):
             return 'non-negative-float' if self.inclusive else 'positive-float'
         else:
-            return f'float∈{_repr_inteval(self.minval, self.maxval, inclusive=self.inclusive)}'
+            return f'float∈{self._interval}'
 
-
-def _validate_in_range(x, minval, maxval, inclusive):
-    if math.isinf(x):
-        raise ValueError
-    if inclusive:
-        if not (minval <= x <= maxval):
-            raise ValueError
-    elif not (minval < x < maxval):
-        raise ValueError
-    return x
+    @property
+    def _interval(self):
+        return _repr_inteval(self.minval, self.maxval, inclusive=self.inclusive)
 
 
 def _repr_inteval(minval, maxval, inclusive):
@@ -101,7 +116,12 @@ class LookUp:
         self.choices = choices
 
     def __call__(self, arg_string):
-        return self.choices[arg_string]
+        try:
+            return self.choices[arg_string]
+        except KeyError:
+            raise ArgumentTypeError(
+                f"invalid choice: {arg_string!r} (choose from {format_list(self.choices.keys())})",
+            )
 
     def __repr__(self):
         return format_choices(self.choices.keys())
@@ -136,22 +156,22 @@ class FactoryMethod:
                 m = re.match(r'(.*)\((.*)\)', arg_string)
                 func_name, arg_string = m.group(1), m.group(2)
             except (AttributeError, IndexError):
-                raise ValueError(f"invalid arguments: {arg_string!r}")
+                raise ArgumentTypeError(f"invalid arguments: {arg_string!r}")
         else:
             func_name, arg_string = arg_string, ''
 
         try:
             func = self.registry[func_name]
         except KeyError:
-            raise ValueError(
+            raise ArgumentTypeError(
                 f"invalid choice: '{func_name}' (choose from {format_list(self.registry.keys())})",
             )
         try:
             pos_args, kwargs = self._parse_arg_string(arg_string)
         except ValueError:
-            raise ValueError(f"invalid kwargs: {arg_string!r}")
+            raise ArgumentTypeError(f"invalid kwargs: {arg_string!r}")
         except NameError:
-            raise ValueError("value should be built-in types.")
+            raise ArgumentTypeError("value should be built-in types.")
 
         if self.use_match_abbrev:
             result = match_abbrev(func)(*pos_args, **kwargs)

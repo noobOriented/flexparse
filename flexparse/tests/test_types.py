@@ -3,6 +3,7 @@ import os
 import pytest
 
 from ..types import (
+    ArgumentTypeError,
     IntRange,
     FloatRange,
     path,
@@ -28,7 +29,7 @@ class TestIntRange:
         (IntRange(), '2.'),
     ])
     def test_raise(self, func, x):
-        with pytest.raises(ValueError):
+        with pytest.raises(ArgumentTypeError):
             func(x)
 
     @pytest.mark.parametrize('func, expected_repr', [
@@ -56,7 +57,7 @@ class TestFloatRange:
         (FloatRange(), 'inf'),
     ])
     def test_raise(self, func, x):
-        with pytest.raises(ValueError):
+        with pytest.raises(ArgumentTypeError):
             func(x)
 
     @pytest.mark.parametrize('func, expected_repr', [
@@ -147,5 +148,5 @@ class TestFactoryMethod:
         pytest.param('foo(x=1,x=2)', id='duplicated_key'),
     ])
     def test_raise_invalid_arg(self, type_, invalid_arg):
-        with pytest.raises(ValueError):
+        with pytest.raises(ArgumentTypeError):
             type_(invalid_arg)
