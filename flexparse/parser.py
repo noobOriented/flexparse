@@ -41,3 +41,9 @@ class ArgumentParser(argparse.ArgumentParser):
             namespace = Namespace()
 
         return super().parse_known_args(args, namespace)
+
+    def add_argument_group(self, title=None, description=None, actions=(), **kwargs):
+        group = super().add_argument_group(title, description=description, **kwargs)
+        for action in actions:
+            group._add_action(action)
+        return group
