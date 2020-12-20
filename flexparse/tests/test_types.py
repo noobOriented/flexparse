@@ -3,8 +3,8 @@ import os
 import pytest
 
 from ..types import (
-    int_in_range,
-    float_in_range,
+    IntRange,
+    FloatRange,
     path,
     filepath,
     dirpath,
@@ -13,34 +13,60 @@ from ..types import (
 )
 
 
-@pytest.mark.parametrize('func, x, valid', [
-    (int_in_range(0), '2', True),
-    (int_in_range(0), '0', True),
-    (int_in_range(2, 5), '6', False),
-    (int_in_range(), 'a', False),
-    (int_in_range(), '2.', False),
-])
-def test_int_in_range(func, x, valid):
-    if valid:
+class TestIntRange:
+
+    @pytest.mark.parametrize('func, x', [
+        (IntRange(0), '2'),
+        (IntRange(0), '0'),
+    ])
+    def test_call(self, func, x):
         assert func(x) == int(x)
-    else:
+
+    @pytest.mark.parametrize('func, x', [
+        (IntRange(2, 5), '6'),
+        (IntRange(), 'a'),
+        (IntRange(), '2.'),
+    ])
+    def test_raise(self, func, x):
         with pytest.raises(ValueError):
             func(x)
 
+    @pytest.mark.parametrize('func, expected_repr', [
+        (IntRange(0), 'non-negative-int'),
+        (IntRange(1), 'positive-int'),
+        (IntRange(2), 'int∈[2, ∞)'),
+        (IntRange(2, 5), 'int∈[2, 5]'),
+    ])
+    def test_repr(self, func, expected_repr):
+        assert repr(func) == expected_repr
 
-@pytest.mark.parametrize('func, x, valid', [
-    (float_in_range(0), '2', True),
-    (float_in_range(0), '0', True),
-    (float_in_range(0, inclusive=False), '0', False),
-    (float_in_range(), 'a', False),
-    (float_in_range(), 'inf', False),
-])
-def test_float_in_range(func, x, valid):
-    if valid:
+
+class TestFloatRange:
+
+    @pytest.mark.parametrize('func, x', [
+        (FloatRange(0), '2'),
+        (FloatRange(0), '0'),
+    ])
+    def test_call(self, func, x):
         assert func(x) == float(x)
-    else:
+
+    @pytest.mark.parametrize('func, x', [
+        (FloatRange(0, inclusive=False), '0'),
+        (FloatRange(), 'a'),
+        (FloatRange(), 'inf'),
+    ])
+    def test_raise(self, func, x):
         with pytest.raises(ValueError):
             func(x)
+
+    @pytest.mark.parametrize('func, expected_repr', [
+        (FloatRange(0.), 'non-negative-float'),
+        (FloatRange(0., inclusive=False), 'positive-float'),
+        (FloatRange(1.), 'float∈[1.0, ∞)'),
+        (FloatRange(1., inclusive=False), 'float∈(1.0, ∞)'),
+    ])
+    def test_repr(self, func, expected_repr):
+        assert repr(func) == expected_repr
 
 
 def test_path():
@@ -61,20 +87,6 @@ def test_dirpath(tmpdir):
     assert dirpath(tmpdir) == tmpdir
     with pytest.raises(ValueError):
         dirpath(os.path.join(tmpdir, 'dir_not_existed'))
-
-
-@pytest.mark.parametrize('func, expected_name', [
-    (int_in_range(0), 'nonnegative_int'),
-    (int_in_range(1), 'positive_int'),
-    (int_in_range(2), 'int∈[2, ∞)'),
-    (int_in_range(2, 5), 'int∈[2, 5]'),
-    (float_in_range(0.), 'nonnegative_float'),
-    (float_in_range(0., inclusive=False), 'positive_float'),
-    (float_in_range(1.), 'float∈[1.0, ∞)'),
-    (float_in_range(1., inclusive=False), 'float∈(1.0, ∞)'),
-])
-def test_name(func, expected_name):
-    assert func.__name__ == expected_name
 
 
 def test_lookup():

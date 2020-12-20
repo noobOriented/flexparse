@@ -13,32 +13,39 @@ from .utils import (
 )
 
 
-def int_in_range(minval=-math.inf, maxval=math.inf):
+class IntRange:
 
-    def func(x):
-        return _validate_in_range(int(x), minval, maxval, inclusive=True)
+    def __init__(self, minval=-math.inf, maxval=math.inf):
+        self.minval = minval
+        self.maxval = maxval
 
-    if (minval, maxval) == (1, math.inf):
-        func.__name__ = 'positive_int'
-    elif (minval, maxval) == (0, math.inf):
-        func.__name__ = 'nonnegative_int'
-    else:
-        func.__name__ = f'int∈{_repr_inteval(minval, maxval, inclusive=True)}'
-    return func
+    def __call__(self, x):
+        return _validate_in_range(int(x), self.minval, self.maxval, inclusive=True)
+
+    def __repr__(self):
+        if (self.minval, self.maxval) == (1, math.inf):
+            return 'positive-int'
+        elif (self.minval, self.maxval) == (0, math.inf):
+            return 'non-negative-int'
+        else:
+            return f'int∈{_repr_inteval(self.minval, self.maxval, inclusive=True)}'
 
 
-def float_in_range(minval=-math.inf, maxval=math.inf, inclusive=True):
+class FloatRange:
 
-    def func(x):
-        return _validate_in_range(float(x), minval, maxval, inclusive=inclusive)
+    def __init__(self, minval=-math.inf, maxval=math.inf, inclusive=True):
+        self.minval = minval
+        self.maxval = maxval
+        self.inclusive = inclusive
 
-    if (minval, maxval, inclusive) == (0., math.inf, False):
-        func.__name__ = 'positive_float'
-    elif (minval, maxval, inclusive) == (0., math.inf, True):
-        func.__name__ = 'nonnegative_float'
-    else:
-        func.__name__ = f'float∈{_repr_inteval(minval, maxval, inclusive)}'
-    return func
+    def __call__(self, x):
+        return _validate_in_range(float(x), self.minval, self.maxval, inclusive=self.inclusive)
+
+    def __repr__(self):
+        if (self.minval, self.maxval) == (0., math.inf):
+            return 'non-negative-float' if self.inclusive else 'positive-float'
+        else:
+            return f'float∈{_repr_inteval(self.minval, self.maxval, inclusive=self.inclusive)}'
 
 
 def _validate_in_range(x, minval, maxval, inclusive):

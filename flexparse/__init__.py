@@ -11,5 +11,5 @@ from argparse import (
 
 from .actions import create_action
 from .namespace import Namespace
-from .types import int_in_range, path, LookUp, FactoryMethod
+from .types import IntRange, FloatRange, path, LookUp, FactoryMethod
 from .parser import ArgumentParser
