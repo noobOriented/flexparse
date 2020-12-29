@@ -6,7 +6,7 @@ from itertools import takewhile, dropwhile
 from typing import Dict
 
 from flexparse.formatters import format_choices
-from flexparse.utils import format_id, dict_of_unique, format_list, join_arg_string, match_abbrev
+from flexparse.utils import format_id, dict_of_unique, format_list, match_abbrev
 
 
 class LookUp:
@@ -28,7 +28,7 @@ class LookUp:
 
 class LookUpCall:
 
-    COMMA = ','  # TODO configurable color?
+    COMMA = ', '  # TODO configurable color?
 
     class InvalidLiteralError(Exception):
         pass
@@ -119,16 +119,9 @@ class LookUpCall:
             # default as string if can't eval
         return val
 
-    @staticmethod
-    def format_call(func, *args, **kwargs):
-        return CallInfo.format_call(func, *args, **kwargs)
-
-    def get_choices_help(self):
-        help_string = "\n".join(
-            f"{format_id(key, bracket=False)}{inspect.signature(func)}"
-            for key, func in self.choices.items()
-        )
-        return f"choices & custom options: \n{help_string}\n"
+    def signatures(self):
+        for key, func in self.choices.items():
+            yield f"{format_id(key, bracket=False)}{inspect.signature(func)}"
 
     def __repr__(self):
         return f"{format_choices(self.choices.keys())}(*args{self.COMMA}**kwargs)"
@@ -136,20 +129,8 @@ class LookUpCall:
 
 class CallInfo:
 
-    COMMA = ', '
-
     def __init__(self, func, func_name, *args, **kwargs):
         self.func = func
         self.func_name = func_name
         self.args = args
         self.kwargs = kwargs
-
-    @property
-    def arg_string(self):
-        return self.format_call(self.func_name, *self.args, **self.kwargs)
-
-    @classmethod
-    def format_call(cls, func, *args, **kwargs):
-        func_name = func if isinstance(func, str) else func.__name__
-        func_name = format_id(func_name, bracket=False)
-        return f"{func_name}({join_arg_string(*args, **kwargs, sep=cls.COMMA)})"
