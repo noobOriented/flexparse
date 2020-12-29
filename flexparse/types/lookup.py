@@ -1,3 +1,4 @@
+import abc
 import ast
 import inspect
 import re
@@ -28,7 +29,9 @@ class LookUp:
         return format_choices(self.choices.keys())
 
 
-class LookUpCall:
+class _LookUpCallBase(abc.ABC):
+
+    ArgumentInfo = namedtuple('ArgumentInfo', ['arg', 'func_name', 'param_string'])
 
     def __init__(
             self,
@@ -66,45 +69,14 @@ class LookUpCall:
         except Exception:
             raise ArgumentTypeError(f"invalid syntax: {param_string!r}")
 
-        try:
-            if self.match_abbrev:
-                result = match_abbrev(func)(*pos_args, **kwargs)
-            else:
-                result = func(*pos_args, **kwargs)
-        except TypeError as e:
-            raise ArgumentTypeError(str(e))
-
+        result = self.make_result(func, *pos_args, **kwargs)
         if self.set_info:
-            result.argument_info = ArgumentInfo(arg_string, func_name, param_string)
+            result.argument_info = self.ArgumentInfo(arg_string, func_name, param_string)
         return result
 
-    def _parse_arg_string(self, arg_string):
-        if not arg_string:
-            return (), {}
-
-        def literal_eval(val):
-            try:
-                val = ast.literal_eval(val)
-            except Exception:
-                if not self.default_as_str:
-                    raise InvalidLiteralError(f"{val!r} can't be evaled to built-in types")
-                # default as string if can't eval
-            return val
-
-        def parse_item(item_string):
-            key, val = item_string.split('=')
-            return key, literal_eval(val)
-
-        arg_list = [arg.strip(' ') for arg in arg_string.split(',')]
-        pos_args = tuple(
-            literal_eval(s)
-            for s in takewhile(lambda s: '=' not in s, arg_list)
-        )
-        kwargs = dict_of_unique(
-            parse_item(s)
-            for s in dropwhile(lambda s: '=' not in s, arg_list)
-        )
-        return pos_args, kwargs
+    @abc.abstractmethod
+    def make_result(self, func, *args, **kwargs):
+        pass
 
     def get_helps(self):
         for key, func in self.choices.items():
@@ -114,15 +86,19 @@ class LookUpCall:
         return f"{format_choices(self.choices.keys())}(*args, **kwargs)"
 
 
-class InvalidLiteralError(Exception):
+class LookUpCall(_LookUpCallBase):
 
-    pass
+    def make_result(self, func, *args, **kwargs):
+        try:
+            if self.match_abbrev:
+                return match_abbrev(func)(*args, **kwargs)
+            else:
+                return func(*args, **kwargs)
+        except TypeError as e:
+            raise ArgumentTypeError(str(e))
 
 
-ArgumentInfo = namedtuple('ArgumentInfo', ['arg', 'func_name', 'param_string'])
-
-
-class LookUpPartial:
+class LookUpPartial(_LookUpCallBase):
 
     def __init__(
             self,
@@ -131,38 +107,13 @@ class LookUpPartial:
             default_as_str: bool = True,
             match_abbrev: bool = True,
         ):
-        if all(map(callable, choices.values())):
-            self.choices = choices
-        else:
-            raise ValueError
-
+        super().__init__(choices, default_as_str, match_abbrev)
         self.target_signature = target_signature
-        self.default_as_str = default_as_str
-        self.match_abbrev = match_abbrev
 
-    def __call__(self, arg_string):
-        try:
-            func_name, param_string = split_func_name_and_param_string(arg_string)
-        except (AttributeError, IndexError):
-            raise ArgumentTypeError(f"{arg_string!r} can't be parsed as a call")
-
-        try:
-            func = self.choices[func_name]
-        except KeyError:
-            raise ArgumentTypeError(
-                f"invalid function name: {func_name!r} "
-                f"(choose from {format_list(self.choices.keys())})",
-            )
-        try:
-            pos_args, kwargs = get_pos_keyword_args(param_string, self.default_as_str)
-        except InvalidLiteralError as e:
-            raise ArgumentTypeError(str(e))
-        except Exception:
-            raise ArgumentTypeError(f"invalid syntax: {param_string!r}")
-
+    def make_result(self, func, *args, **kwargs):
         try:
             signature = inspect.signature(func)
-            kwargs = signature.bind_partial(*pos_args, **kwargs).arguments
+            kwargs = signature.bind_partial(*args, **kwargs).arguments
         except TypeError as e:
             raise ArgumentTypeError(str(e))
 
@@ -221,3 +172,8 @@ def get_pos_keyword_args(arg_string, default_as_str: bool = True):
         for s in dropwhile(lambda s: '=' not in s, arg_list)
     )
     return pos_args, kwargs
+
+
+class InvalidLiteralError(Exception):
+
+    pass
