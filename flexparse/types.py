@@ -1,15 +1,13 @@
 import ast
+import inspect
 import math
 import re
 from argparse import ArgumentTypeError
-from itertools import takewhile, dropwhile, starmap
+from itertools import takewhile, dropwhile
 from typing import Dict
 
 from .formatters import format_choices
-from .utils import (
-    format_id, dict_of_unique, format_list, join_arg_string, get_args, extract_wrapped,
-    match_abbrev,
-)
+from .utils import format_id, dict_of_unique, format_list, join_arg_string, match_abbrev
 
 
 class IntRange:
@@ -103,7 +101,7 @@ class LookUp:
         return format_choices(self.choices.keys())
 
 
-class FactoryMethod:
+class LookUpCall:
 
     COMMA = ','  # TODO configurable color?
 
@@ -112,13 +110,13 @@ class FactoryMethod:
 
     def __init__(
             self,
-            registry: Dict[str, callable],
+            choices: Dict[str, callable],
             return_info: bool = False,
             default_as_string: bool = True,
             match_abbrev: bool = True,
         ):
-        if all(map(callable, registry.values())):
-            self.registry = registry
+        if all(map(callable, choices.values())):
+            self.choices = choices
         else:
             raise ValueError
 
@@ -140,11 +138,11 @@ class FactoryMethod:
             func_name, arg_string = arg_string, ''
 
         try:
-            func = self.registry[func_name]
+            func = self.choices[func_name]
         except KeyError:
             raise ArgumentTypeError(
                 f"invalid function name: '{func_name}' "
-                f"(choose from {format_list(self.registry.keys())})",
+                f"(choose from {format_list(self.choices.keys())})",
             )
         try:
             pos_args, kwargs = self._parse_arg_string(arg_string)
@@ -200,18 +198,15 @@ class FactoryMethod:
     def format_call(func, *args, **kwargs):
         return CallInfo.format_call(func, *args, **kwargs)
 
-    def get_registry_help(self):
-
-        def format_item(key, val):
-            func = extract_wrapped(val)
-            arg_string = self.COMMA.join(get_args(func))
-            return f"{format_id(key, bracket=False)}({arg_string})"
-
-        help_string = "\n".join(starmap(format_item, self.registry.items()))
-        return f"registry & custom options: \n{help_string}\n"
+    def get_choices_help(self):
+        help_string = "\n".join(
+            f"{format_id(key, bracket=False)}{inspect.signature(func)}"
+            for key, func in self.choices.items()
+        )
+        return f"choices & custom options: \n{help_string}\n"
 
     def __repr__(self):
-        return f"{format_choices(self.registry.keys())}(*args{self.COMMA}**kwargs)"
+        return f"{format_choices(self.choices.keys())}(*args{self.COMMA}**kwargs)"
 
 
 class CallInfo:

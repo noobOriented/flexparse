@@ -5,7 +5,7 @@ from ..types import (
     IntRange,
     FloatRange,
     LookUp,
-    FactoryMethod,
+    LookUpCall,
 )
 
 
@@ -92,11 +92,11 @@ def goo(*args, **kwargs):
     return 'goo', args, kwargs
 
 
-class TestFactoryMethod:
+class TestLookUpCall:
 
     @pytest.fixture
     def type_(self):
-        return FactoryMethod(registry={'foo': foo, 'goo': goo})
+        return LookUpCall(choices={'foo': foo, 'goo': goo})
 
     @pytest.mark.parametrize('arg_string, expected_output', [
         pytest.param(
