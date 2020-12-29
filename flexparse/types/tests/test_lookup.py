@@ -1,6 +1,8 @@
+from functools import partial
+
 import pytest
 
-from ..lookup import ArgumentTypeError, LookUp, LookUpCall
+from ..lookup import ArgumentTypeError, LookUp, LookUpCall, LookUpPartial
 
 
 class TestLookUp:
@@ -27,7 +29,7 @@ def goo(*args, **kwargs):
 
 class TestLookUpCall:
 
-    @pytest.fixture
+    @pytest.fixture(scope='class')
     def type_(self):
         return LookUpCall(choices={'foo': foo, 'goo': goo})
 
@@ -58,7 +60,7 @@ class TestLookUpCall:
             id='no builtins',
         ),
     ])
-    def test_store(self, type_, arg_string, expected_output):
+    def test_call(self, type_, arg_string, expected_output):
         assert type_(arg_string) == expected_output
 
     @pytest.mark.parametrize('invalid_arg', [
@@ -66,6 +68,34 @@ class TestLookUpCall:
         pytest.param('foo(x=1=y)', id='invalid_format_='),
         pytest.param('foo(x=1+y=y)', id='invalid_format_split'),
         pytest.param('foo(x=1,x=2)', id='duplicated_key'),
+    ])
+    def test_raise_invalid_arg(self, type_, invalid_arg):
+        with pytest.raises(ArgumentTypeError):
+            type_(invalid_arg)
+
+
+def hoo(a, *, b, c):
+    return a, b, c
+
+
+class TestLookPartial:
+
+    @pytest.fixture(scope='class')
+    def type_(self):
+        return LookUpPartial(choices={'hoo': hoo}, target_signature=['a'])
+
+    @pytest.mark.parametrize('arg_string, expected_output', [
+        pytest.param(
+            'hoo(b=2,c=3)',
+            partial(hoo, b=2, c=3),
+            id='empty',
+        ),
+    ])
+    def test_call(self, type_, arg_string, expected_output):
+        assert type_(arg_string)(a=1) == expected_output(a=1)
+
+    @pytest.mark.parametrize('invalid_arg', [
+        pytest.param('hoo(d=4)', id='unexpected_argument'),
     ])
     def test_raise_invalid_arg(self, type_, invalid_arg):
         with pytest.raises(ArgumentTypeError):

@@ -16,7 +16,7 @@ class IntRange:
         if self.minval <= int_x <= self.maxval:
             return int_x
         else:
-            raise ArgumentTypeError(f"{int_x} not in {self._interval}")
+            raise ArgumentTypeError(f"{int_x} not in {self.interval_string}")
 
     def __repr__(self):
         if (self.minval, self.maxval) == (1, float('inf')):
@@ -24,11 +24,11 @@ class IntRange:
         elif (self.minval, self.maxval) == (0, float('inf')):
             return 'non-negative-int'
         else:
-            return f'int∈{self._interval}'
+            return f'int∈{self.interval_string}'
 
     @property
-    def _interval(self):
-        return _repr_inteval(self.minval, self.maxval, inclusive=True)
+    def interval_string(self) -> str:
+        return repr_interval(self.minval, self.maxval, inclusive=True)
 
 
 class FloatRange:
@@ -49,20 +49,20 @@ class FloatRange:
         ):
             return float_x
         else:
-            raise ArgumentTypeError(f"{float_x} not in {self._interval}")
+            raise ArgumentTypeError(f"{float_x} not in {self.interval_string}")
 
     def __repr__(self):
         if (self.minval, self.maxval) == (0., float('inf')):
             return 'non-negative-float' if self.inclusive else 'positive-float'
         else:
-            return f'float∈{self._interval}'
+            return f'float∈{self.interval_string}'
 
     @property
-    def _interval(self):
-        return _repr_inteval(self.minval, self.maxval, inclusive=self.inclusive)
+    def interval_string(self):
+        return repr_interval(self.minval, self.maxval, inclusive=self.inclusive)
 
 
-def _repr_inteval(minval, maxval, inclusive):
+def repr_interval(minval, maxval, inclusive):
 
     def _math_repr(x):
         if x == float('-inf'):

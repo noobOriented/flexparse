@@ -2,8 +2,10 @@ import ast
 import inspect
 import re
 from argparse import ArgumentTypeError
+from collections import namedtuple
+from functools import partial
 from itertools import takewhile, dropwhile
-from typing import Dict
+from typing import Dict, List
 
 from flexparse.formatters import format_choices
 from flexparse.utils import format_id, dict_of_unique, format_list, match_abbrev
@@ -28,16 +30,11 @@ class LookUp:
 
 class LookUpCall:
 
-    COMMA = ', '  # TODO configurable color?
-
-    class InvalidLiteralError(Exception):
-        pass
-
     def __init__(
             self,
             choices: Dict[str, callable],
-            return_info: bool = False,
-            default_as_string: bool = True,
+            set_info: bool = False,
+            default_as_str: bool = True,
             match_abbrev: bool = True,
         ):
         if all(map(callable, choices.values())):
@@ -45,36 +42,29 @@ class LookUpCall:
         else:
             raise ValueError
 
-        self.return_info = return_info
-        self.default_as_string = default_as_string
+        self.set_info = set_info
+        self.default_as_str = default_as_str
         self.match_abbrev = match_abbrev
 
     def __call__(self, arg_string):
-        # clean color
-        ANSI_CLEANER = re.compile(r"(\x9B|\x1B\[)[0-?]*[ -/]*[@-~]")
-        arg_string = ANSI_CLEANER.sub("", arg_string)
-        if arg_string[-1] == ')':
-            try:
-                m = re.match(r'(.*)\((.*)\)', arg_string)
-                func_name, arg_string = m.group(1), m.group(2)
-            except (AttributeError, IndexError):
-                raise ArgumentTypeError(f"{arg_string!r} can't be parsed as a call")
-        else:
-            func_name, arg_string = arg_string, ''
+        try:
+            func_name, param_string = split_func_name_and_param_string(arg_string)
+        except (AttributeError, IndexError):
+            raise ArgumentTypeError(f"{arg_string!r} can't be parsed as a call")
 
         try:
             func = self.choices[func_name]
         except KeyError:
             raise ArgumentTypeError(
-                f"invalid function name: '{func_name}' "
+                f"invalid function name: {func_name!r} "
                 f"(choose from {format_list(self.choices.keys())})",
             )
         try:
-            pos_args, kwargs = self._parse_arg_string(arg_string)
-        except self.InvalidLiteralError as e:
+            pos_args, kwargs = get_pos_keyword_args(param_string, self.default_as_str)
+        except InvalidLiteralError as e:
             raise ArgumentTypeError(str(e))
         except Exception:
-            raise ArgumentTypeError(f"invalid syntax: {arg_string!r}")
+            raise ArgumentTypeError(f"invalid syntax: {param_string!r}")
 
         try:
             if self.match_abbrev:
@@ -84,53 +74,150 @@ class LookUpCall:
         except TypeError as e:
             raise ArgumentTypeError(str(e))
 
-        if self.return_info:
-            return result, CallInfo(func, func_name, *pos_args, **kwargs)
-        else:
-            return result
+        if self.set_info:
+            result.argument_info = ArgumentInfo(arg_string, func_name, param_string)
+        return result
 
     def _parse_arg_string(self, arg_string):
         if not arg_string:
             return (), {}
 
+        def literal_eval(val):
+            try:
+                val = ast.literal_eval(val)
+            except Exception:
+                if not self.default_as_str:
+                    raise InvalidLiteralError(f"{val!r} can't be evaled to built-in types")
+                # default as string if can't eval
+            return val
+
+        def parse_item(item_string):
+            key, val = item_string.split('=')
+            return key, literal_eval(val)
+
         arg_list = [arg.strip(' ') for arg in arg_string.split(',')]
         pos_args = tuple(
-            self._literal_eval(s)
+            literal_eval(s)
             for s in takewhile(lambda s: '=' not in s, arg_list)
         )
         kwargs = dict_of_unique(
-            self._parse_kwarg(s)
+            parse_item(s)
             for s in dropwhile(lambda s: '=' not in s, arg_list)
         )
         return pos_args, kwargs
 
-    def _parse_kwarg(self, item_string):
-        key, val = item_string.split('=')
-        return key, self._literal_eval(val)
-
-    def _literal_eval(self, val):
-        try:
-            val = ast.literal_eval(val)
-        except Exception:
-            if not self.default_as_string:
-                raise self.InvalidLiteralError(
-                    f"{val!r} can't be evaled to built-in types",
-                )
-            # default as string if can't eval
-        return val
-
-    def signatures(self):
+    def get_helps(self):
         for key, func in self.choices.items():
             yield f"{format_id(key, bracket=False)}{inspect.signature(func)}"
 
     def __repr__(self):
-        return f"{format_choices(self.choices.keys())}(*args{self.COMMA}**kwargs)"
+        return f"{format_choices(self.choices.keys())}(*args, **kwargs)"
 
 
-class CallInfo:
+class InvalidLiteralError(Exception):
 
-    def __init__(self, func, func_name, *args, **kwargs):
-        self.func = func
-        self.func_name = func_name
-        self.args = args
-        self.kwargs = kwargs
+    pass
+
+
+ArgumentInfo = namedtuple('ArgumentInfo', ['arg', 'func_name', 'param_string'])
+
+
+class LookUpPartial:
+
+    def __init__(
+            self,
+            choices: Dict[str, callable],
+            target_signature: List[str] = None,
+            default_as_str: bool = True,
+            match_abbrev: bool = True,
+        ):
+        if all(map(callable, choices.values())):
+            self.choices = choices
+        else:
+            raise ValueError
+
+        self.target_signature = target_signature
+        self.default_as_str = default_as_str
+        self.match_abbrev = match_abbrev
+
+    def __call__(self, arg_string):
+        try:
+            func_name, param_string = split_func_name_and_param_string(arg_string)
+        except (AttributeError, IndexError):
+            raise ArgumentTypeError(f"{arg_string!r} can't be parsed as a call")
+
+        try:
+            func = self.choices[func_name]
+        except KeyError:
+            raise ArgumentTypeError(
+                f"invalid function name: {func_name!r} "
+                f"(choose from {format_list(self.choices.keys())})",
+            )
+        try:
+            pos_args, kwargs = get_pos_keyword_args(param_string, self.default_as_str)
+        except InvalidLiteralError as e:
+            raise ArgumentTypeError(str(e))
+        except Exception:
+            raise ArgumentTypeError(f"invalid syntax: {param_string!r}")
+
+        try:
+            signature = inspect.signature(func)
+            kwargs = signature.bind_partial(*pos_args, **kwargs).arguments
+        except TypeError as e:
+            raise ArgumentTypeError(str(e))
+
+        return partial(func, **kwargs)
+
+    def get_helps(self):
+        for key, func in self.choices.items():
+            if self.target_signature is not None:
+                original_signature = inspect.signature(func)
+                signature = inspect.Signature(
+                    p
+                    for p in original_signature.parameters.values()
+                    if p.name not in self.target_signature
+                )
+            else:
+                signature = inspect.signature(func)
+
+            yield f"{format_id(key, bracket=False)}{signature}"
+
+
+def split_func_name_and_param_string(arg_string):
+    # clean color
+    ANSI_CLEANER = re.compile(r"(\x9B|\x1B\[)[0-?]*[ -/]*[@-~]")
+    arg_string = ANSI_CLEANER.sub("", arg_string)
+    if arg_string[-1] == ')':
+        m = re.match(r'(.*)\((.*)\)', arg_string)
+        return m.group(1), m.group(2)
+    else:
+        return arg_string, ''
+
+
+def get_pos_keyword_args(arg_string, default_as_str: bool = True):
+    if not arg_string:
+        return (), {}
+
+    def literal_eval(val):
+        try:
+            val = ast.literal_eval(val)
+        except Exception:
+            if not default_as_str:
+                raise InvalidLiteralError(f"{val!r} can't be evaled to built-in types")
+            # default as string if can't eval
+        return val
+
+    def parse_item(item_string):
+        key, val = item_string.split('=')
+        return key, literal_eval(val)
+
+    arg_list = [arg.strip(' ') for arg in arg_string.split(',')]
+    pos_args = tuple(
+        literal_eval(s)
+        for s in takewhile(lambda s: '=' not in s, arg_list)
+    )
+    kwargs = dict_of_unique(
+        parse_item(s)
+        for s in dropwhile(lambda s: '=' not in s, arg_list)
+    )
+    return pos_args, kwargs
