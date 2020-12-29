@@ -1,28 +1,35 @@
-import inspect
-import itertools
-import termcolor
 import functools
-from typing import List
+import inspect
+import termcolor
+from inspect import Parameter
 
 
 def match_abbrev(func):
-    func_args = get_args(func)
-    bypass = inspect.getfullargspec(func).varkw is not None
+    signature = inspect.signature(func)
+    target_args = [
+        key
+        for key, param in signature.parameters.items()
+        if param.kind in (Parameter.POSITIONAL_OR_KEYWORD, Parameter.KEYWORD_ONLY)
+    ]
+    bypass_unmatched = any(
+        param.kind == Parameter.VAR_KEYWORD
+        for param in signature.parameters.values()
+    )
 
     def match_in_func_args(abbrev):
-        matches = [kw for kw in func_args if kw.startswith(abbrev)]
+        matches = [kw for kw in target_args if kw.startswith(abbrev)]
         if len(matches) > 1:
             raise TypeError(
                 f"{abbrev!r} matches multiple keywords: {format_list(matches)}",
             )
         if len(matches) == 1:
             return matches[0]
-        elif bypass:  # too short
+        elif bypass_unmatched:  # too short
             return abbrev
 
         raise TypeError(
             f"{func.__qualname__}() got an unexpected keyword argument {abbrev!r}, "
-            f"allowed arguments: {format_list(func_args)}",
+            f"allowed arguments: {format_list(target_args)}",
         )
 
     @functools.wraps(func)
@@ -39,32 +46,12 @@ def match_abbrev(func):
     return wrapped
 
 
-def get_args(func) -> List[str]:
-    func_args = inspect.getfullargspec(func).args
-    if func_args and func_args[0] in ('self', 'cls'):
-        return func_args[1:]
-    return func_args
-
-
-def extract_wrapped(func, attr_name='__wrapped__'):
-    if hasattr(func, attr_name):
-        return extract_wrapped(getattr(func, attr_name))
-    return func
-
-
 def format_id(id_str: str, bracket: bool = True) -> str:
     return termcolor.colored(f"[{id_str}]" if bracket else id_str, 'cyan')
 
 
 def format_list(lst):
     return ', '.join(map(repr, lst))
-
-
-def join_arg_string(*args, sep=', ', **kwargs):
-    return sep.join(itertools.chain(
-        map(str, args),
-        (f"{k}={v}" for k, v in kwargs.items()),
-    ))
 
 
 def dict_of_unique(items):
