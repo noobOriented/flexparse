@@ -1,30 +1,35 @@
 import functools
 import inspect
 import termcolor
+from inspect import Parameter
 
 
 def match_abbrev(func):
     signature = inspect.signature(func)
-    func_args = signature.parameters.keys()
-    bypass = any(
-        param.kind == inspect.Parameter.VAR_KEYWORD
+    target_args = [
+        key
+        for key, param in signature.parameters.items()
+        if param.kind in (Parameter.POSITIONAL_OR_KEYWORD, Parameter.KEYWORD_ONLY)
+    ]
+    bypass_unmatched = any(
+        param.kind == Parameter.VAR_KEYWORD
         for param in signature.parameters.values()
     )
 
     def match_in_func_args(abbrev):
-        matches = [kw for kw in func_args if kw.startswith(abbrev)]
+        matches = [kw for kw in target_args if kw.startswith(abbrev)]
         if len(matches) > 1:
             raise TypeError(
                 f"{abbrev!r} matches multiple keywords: {format_list(matches)}",
             )
         if len(matches) == 1:
             return matches[0]
-        elif bypass:  # too short
+        elif bypass_unmatched:  # too short
             return abbrev
 
         raise TypeError(
             f"{func.__qualname__}() got an unexpected keyword argument {abbrev!r}, "
-            f"allowed arguments: {format_list(func_args)}",
+            f"allowed arguments: {format_list(target_args)}",
         )
 
     @functools.wraps(func)
