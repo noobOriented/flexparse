@@ -151,3 +151,11 @@ def format_choices(choices):
         for choice in choices
     ]
     return f"{{{', '.join(choice_strs)}}}"
+
+
+def format_id(id_str: str, bracket: bool = True) -> str:
+    return termcolor.colored(f"[{id_str}]" if bracket else id_str, 'cyan')
+
+
+def format_list(lst):
+    return ', '.join(map(repr, lst))

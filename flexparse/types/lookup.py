@@ -6,8 +6,7 @@ from argparse import ArgumentTypeError
 from collections import namedtuple
 from typing import Dict
 
-from flexparse.formatters import format_choices
-from flexparse.utils import format_id, format_list, match_abbrev
+from flexparse.formatters import format_choices, format_id, format_list
 
 
 class LookUp:
@@ -31,19 +30,13 @@ class LookUpCall:
 
     ArgumentInfo = namedtuple('ArgumentInfo', ['arg_string', 'func_name', 'func', 'args', 'kwargs'])
 
-    def __init__(
-            self,
-            choices: Dict[str, callable],
-            set_info: bool = False,
-            match_abbrev: bool = True,
-        ):
+    def __init__(self, choices: Dict[str, callable], set_info: bool = False):
         if all(map(callable, choices.values())):
             self.choices = choices
         else:
             raise ValueError
 
         self.set_info = set_info
-        self.match_abbrev = match_abbrev
 
     def __call__(self, arg_string):
         # clean color
@@ -63,10 +56,7 @@ class LookUpCall:
             )
 
         try:
-            if self.match_abbrev:
-                result = match_abbrev(func)(*pos_args, **kwargs)
-            else:
-                result = func(*pos_args, **kwargs)
+            result = func(*pos_args, **kwargs)
         except TypeError as e:
             raise ArgumentTypeError(str(e))
 
