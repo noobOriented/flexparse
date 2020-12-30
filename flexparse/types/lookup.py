@@ -1,15 +1,12 @@
-import abc
 import ast
 import builtins
 import inspect
 import re
 from argparse import ArgumentTypeError
 from collections import namedtuple
-from functools import partial
-from typing import Dict, List
+from typing import Dict
 
-from flexparse.formatters import format_choices
-from flexparse.utils import format_id, format_list, match_abbrev
+from flexparse.formatters import format_choices, format_id, format_list
 
 
 class LookUp:
@@ -29,23 +26,17 @@ class LookUp:
         return format_choices(self.choices.keys())
 
 
-class _LookUpCallBase(abc.ABC):
+class LookUpCall:
 
     ArgumentInfo = namedtuple('ArgumentInfo', ['arg_string', 'func_name', 'func', 'args', 'kwargs'])
 
-    def __init__(
-            self,
-            choices: Dict[str, callable],
-            set_info: bool = False,
-            match_abbrev: bool = True,
-        ):
+    def __init__(self, choices: Dict[str, callable], set_info: bool = False):
         if all(map(callable, choices.values())):
             self.choices = choices
         else:
             raise ValueError
 
         self.set_info = set_info
-        self.match_abbrev = match_abbrev
 
     def __call__(self, arg_string):
         # clean color
@@ -64,14 +55,14 @@ class _LookUpCallBase(abc.ABC):
                 f"(choose from {format_list(self.choices.keys())})",
             )
 
-        result = self.make_result(func, *pos_args, **kwargs)
+        try:
+            result = func(*pos_args, **kwargs)
+        except TypeError as e:
+            raise ArgumentTypeError(str(e))
+
         if self.set_info:
             result.argument_info = self.ArgumentInfo(arg_string, func_name, func, pos_args, kwargs)
         return result
-
-    @abc.abstractmethod
-    def make_result(self, func, *args, **kwargs):
-        pass
 
     def get_helps(self):
         for key, func in self.choices.items():
@@ -79,53 +70,6 @@ class _LookUpCallBase(abc.ABC):
 
     def __repr__(self):
         return f"{format_choices(self.choices.keys())}(*args, **kwargs)"
-
-
-class LookUpCall(_LookUpCallBase):
-
-    def make_result(self, func, *args, **kwargs):
-        try:
-            if self.match_abbrev:
-                return match_abbrev(func)(*args, **kwargs)
-            else:
-                return func(*args, **kwargs)
-        except TypeError as e:
-            raise ArgumentTypeError(str(e))
-
-
-class LookUpPartial(_LookUpCallBase):
-
-    def __init__(
-            self,
-            choices: Dict[str, callable],
-            match_abbrev: bool = True,
-            target_signature: List[str] = None,
-        ):
-        super().__init__(choices, match_abbrev)
-        self.target_signature = target_signature
-
-    def make_result(self, func, *args, **kwargs):
-        try:
-            signature = inspect.signature(func)
-            kwargs = signature.bind_partial(*args, **kwargs).arguments
-        except TypeError as e:
-            raise ArgumentTypeError(str(e))
-
-        return partial(func, **kwargs)
-
-    def get_helps(self):
-        for key, func in self.choices.items():
-            if self.target_signature is not None:
-                original_signature = inspect.signature(func)
-                signature = inspect.Signature(
-                    p
-                    for p in original_signature.parameters.values()
-                    if p.name not in self.target_signature
-                )
-            else:
-                signature = inspect.signature(func)
-
-            yield f"{format_id(key, bracket=False)}{signature}"
 
 
 def get_func_name_and_args(string: str):
@@ -148,19 +92,16 @@ def get_func_name_and_args(string: str):
             return set(map(_convert, node.elts))
         elif isinstance(node, ast.Dict):
             return {_convert(k): _convert(v) for k, v in zip(node.keys, node.values)}
-        elif isinstance(node, ast.NameConstant):
+        elif isinstance(node, ast.NameConstant):  # True, False, None
             return node.value
         elif (
             isinstance(node, ast.UnaryOp)
-            and isinstance(node.op, (ast.UAdd, ast.USub))
-            and isinstance(node.operand, (ast.Num, ast.UnaryOp, ast.BinOp))
+            and isinstance(node.op, ast.USub)
+            and isinstance(node.operand, ast.Num)
         ):
-            operand = _convert(node.operand)
-            if isinstance(node.op, ast.UAdd):
-                return + operand
-            else:
-                return - operand
-
+            return -_convert(node.operand)
+        elif isinstance(node, ast.Call):
+            raise ValueError("inner function call is not allowed")
         elif isinstance(node, ast.Name):
             builtin = getattr(builtins, node.id, None)
             if builtin:
@@ -170,7 +111,7 @@ def get_func_name_and_args(string: str):
         elif isinstance(node, ast.BinOp):
             raise ValueError("operation is not allowed")
 
-        raise ValueError("invalid expression")
+        raise ValueError("forbidden expression")
 
     return (
         node.func.id,

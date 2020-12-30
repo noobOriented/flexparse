@@ -1,8 +1,6 @@
-from functools import partial
-
 import pytest
 
-from ..lookup import ArgumentTypeError, LookUp, LookUpCall, LookUpPartial
+from ..lookup import ArgumentTypeError, LookUp, LookUpCall
 
 
 class TestLookUp:
@@ -69,34 +67,6 @@ class TestLookUpCall:
         pytest.param('foo(x=1,x=2)', id='duplicated_key'),
         pytest.param('foo(x=open)', id='no_builtins'),
         pytest.param('foo(x=os.system)', id='unknown_name'),
-    ])
-    def test_raise_invalid_arg(self, type_, invalid_arg):
-        with pytest.raises(ArgumentTypeError):
-            type_(invalid_arg)
-
-
-def hoo(a, *, b, c):
-    return a, b, c
-
-
-class TestLookPartial:
-
-    @pytest.fixture(scope='class')
-    def type_(self):
-        return LookUpPartial(choices={'hoo': hoo}, target_signature=['a'])
-
-    @pytest.mark.parametrize('arg_string, expected_output', [
-        pytest.param(
-            'hoo(b=2,c=3)',
-            partial(hoo, b=2, c=3),
-            id='empty',
-        ),
-    ])
-    def test_call(self, type_, arg_string, expected_output):
-        assert type_(arg_string)(a=1) == expected_output(a=1)
-
-    @pytest.mark.parametrize('invalid_arg', [
-        pytest.param('hoo(d=4)', id='unexpected_argument'),
     ])
     def test_raise_invalid_arg(self, type_, invalid_arg):
         with pytest.raises(ArgumentTypeError):
