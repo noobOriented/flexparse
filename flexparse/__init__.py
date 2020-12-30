@@ -12,5 +12,5 @@ from argparse import (
 from .actions import create_action
 from .formatters import RawTextHelpFormatter
 from .namespace import Namespace
-from .types import IntRange, FloatRange, LookUp, LookUpCall, LookUpPartial
+from .types import IntRange, FloatRange, LookUp, LookUpCall
 from .parser import ArgumentParser
