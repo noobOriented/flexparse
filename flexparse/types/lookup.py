@@ -92,19 +92,16 @@ def get_func_name_and_args(string: str):
             return set(map(_convert, node.elts))
         elif isinstance(node, ast.Dict):
             return {_convert(k): _convert(v) for k, v in zip(node.keys, node.values)}
-        elif isinstance(node, ast.NameConstant):
+        elif isinstance(node, ast.NameConstant):  # True, False, None
             return node.value
         elif (
             isinstance(node, ast.UnaryOp)
-            and isinstance(node.op, (ast.UAdd, ast.USub))
-            and isinstance(node.operand, (ast.Num, ast.UnaryOp, ast.BinOp))
+            and isinstance(node.op, ast.USub)
+            and isinstance(node.operand, ast.Num)
         ):
-            operand = _convert(node.operand)
-            if isinstance(node.op, ast.UAdd):
-                return + operand
-            else:
-                return - operand
-
+            return -_convert(node.operand)
+        elif isinstance(node, ast.Call):
+            raise ValueError("inner function call is not allowed")
         elif isinstance(node, ast.Name):
             builtin = getattr(builtins, node.id, None)
             if builtin:
@@ -114,7 +111,7 @@ def get_func_name_and_args(string: str):
         elif isinstance(node, ast.BinOp):
             raise ValueError("operation is not allowed")
 
-        raise ValueError("invalid expression")
+        raise ValueError("forbidden expression")
 
     return (
         node.func.id,
