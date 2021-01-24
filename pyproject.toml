@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "flexparse"
+version = "0.1.0"
+description = "flexible argparse for scripts with many options"
+authors = ["noobOriented <jsaon92@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+termcolor = "*"
+more-itertools = "*"
+
+[tool.poetry.dev-dependencies]
+flake8 = "*"
+pytest = "*"
+pytest-cov = "*"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
