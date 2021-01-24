@@ -1,5 +1,4 @@
 import ast
-import builtins
 import inspect
 import re
 from argparse import ArgumentTypeError
@@ -79,42 +78,20 @@ def get_func_name_and_args(string: str):
     if not isinstance(node, ast.Call):
         raise ValueError("can't be parsed as a call.")
 
-    def _convert(node):
-        if isinstance(node, (ast.Str, ast.Bytes)):
-            return node.s
-        elif isinstance(node, ast.Num):
-            return node.n
-        elif isinstance(node, ast.Tuple):
-            return tuple(map(_convert, node.elts))
-        elif isinstance(node, ast.List):
-            return list(map(_convert, node.elts))
-        elif isinstance(node, ast.Set):
-            return set(map(_convert, node.elts))
-        elif isinstance(node, ast.Dict):
-            return {_convert(k): _convert(v) for k, v in zip(node.keys, node.values)}
-        elif isinstance(node, ast.NameConstant):  # True, False, None
-            return node.value
-        elif (
-            isinstance(node, ast.UnaryOp)
-            and isinstance(node.op, ast.USub)
-            and isinstance(node.operand, ast.Num)
-        ):
-            return -_convert(node.operand)
-        elif isinstance(node, ast.Call):
-            raise ValueError("inner function call is not allowed")
-        elif isinstance(node, ast.Name):
-            builtin = getattr(builtins, node.id, None)
-            if builtin:
-                raise NameError(f"{builtin} is not allowed")
-            else:
-                raise NameError(f"name {node.id!r} is not defined")
-        elif isinstance(node, ast.BinOp):
-            raise ValueError("operation is not allowed")
-
-        raise ValueError("forbidden expression")
-
     return (
         node.func.id,
-        [_convert(arg) for arg in node.args],
-        {kw.arg: _convert(kw.value) for kw in node.keywords},
+        [ast.literal_eval(arg) for arg in node.args],
+        dict_of_unique_keys(
+            (kw.arg, ast.literal_eval(kw.value))
+            for kw in node.keywords
+        ),
     )
+
+
+def dict_of_unique_keys(items):
+    output = {}
+    for key, val in items:
+        if key in output:
+            raise ValueError(f"keyword argument repeated: {key}")
+        output[key] = val
+    return output
