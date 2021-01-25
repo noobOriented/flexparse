@@ -5,7 +5,7 @@ description = "flexible argparse for scripts with many options"
 authors = ["noobOriented <jsaon92@gmail.com>"]
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = "^3.6"
 termcolor = "*"
 more-itertools = "*"
 
